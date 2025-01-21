@@ -1,0 +1,154 @@
+@font-face {
+  font-family: "MinecraftAlt";
+  src: url("/minecraft-alt.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "MinecraftSmall";
+  src: url("/minecraft-small.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  overflow: hidden;
+}
+
+.display-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font-family: "MinecraftAlt", sans-serif;
+  background: black;
+}
+
+.video-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  text-align: center;
+  gap: 20px;
+  z-index: 2;
+  padding-top: 2vh;
+}
+
+.logo {
+  width: 30%;
+  margin-top: 8vh;
+}
+
+.timer-container {
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid rgba(128, 128, 128, 0.8);
+  border-radius: 10px;
+  padding: 20px 40px;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  margin: 2vh 0;
+}
+
+.timer-title {
+  font-size: 3rem;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: normal;
+}
+
+.timer-display {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+}
+
+.time-unit-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 140px;
+}
+
+.time-number {
+  font-size: 5rem;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  line-height: 1;
+}
+
+.time-separator {
+  font-size: 5rem;
+  opacity: 0.8;
+  line-height: 1;
+  margin-bottom: 25px;
+}
+
+.time-label {
+  font-size: 1.5rem;
+  opacity: 0.8;
+  text-transform: uppercase;
+}
+
+.message-text {
+  font-size: 1.5rem;
+  color: rgb(254, 70, 70);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 10px;
+  margin-bottom: 5px;
+  padding: 5px 15px;
+}
+
+.announcement-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 60%;
+  margin-top: 5px;
+}
+
+.announcement-image {
+  width: 100%;
+}
+
+.announcement-text {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 3rem;
+  font-family: "MinecraftAlt", sans-serif;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 10px;
+  z-index: 3;
+  width: 90%;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
