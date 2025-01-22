@@ -48,7 +48,7 @@ const Display = () => {
       {/* Video Background */}
       <video
         className="video-background"
-        src="/v2.mp4"
+        src="/p2.mp4"
         autoPlay
         loop
         muted
