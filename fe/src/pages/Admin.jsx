@@ -80,7 +80,7 @@ const Admin = () => {
   // Authentication check
   const handleLogin = (e) => {
     e.preventDefault();
-    if (username === "reese" && password === "tshirtburahai") {
+    if (username === "reese" && password === "reese") {
       setIsAuthenticated(true);
     } else {
       alert("Invalid credentials!");
