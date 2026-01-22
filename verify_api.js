@@ -10,5 +10,7 @@ function checkUrl(url) {
     });
 }
 
-checkUrl('http://localhost:5000/api/timer');
-checkUrl('http://localhost:5000/api/announcement');
+const BASE_URL = process.env.BACKEND_URL || 'http://localhost:5000';
+
+checkUrl(`${BASE_URL}/api/timer`);
+checkUrl(`${BASE_URL}/api/announcement`);

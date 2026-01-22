@@ -80,3 +80,43 @@ app.post("/api/announcement", (req, res) => {
     res.status(400).json({ message: "Invalid announcement." });
   }
 });
+
+// Upcoming Events Section
+let upcomingEvents = [
+  { id: 1, text: "Hackathon Start", date: "2023-11-20T10:00" },
+  { id: 2, text: "Submission Deadline", date: "2023-11-22T12:00" }
+]; // Default events
+
+// Get all upcoming events
+app.get("/api/upcoming-events", (req, res) => {
+  res.json({ events: upcomingEvents });
+});
+
+// Add a new upcoming event
+app.post("/api/upcoming-events", (req, res) => {
+  const { text, date } = req.body;
+  if (text && date) {
+    const newEvent = {
+      id: Date.now(), // Simple ID generation
+      text,
+      date
+    };
+    upcomingEvents.push(newEvent);
+    res.json({ message: "Event added successfully.", event: newEvent });
+  } else {
+    res.status(400).json({ message: "Invalid event data. Text and Date are required." });
+  }
+});
+
+// Delete an upcoming event
+app.delete("/api/upcoming-events/:id", (req, res) => {
+  const { id } = req.params;
+  const initialLength = upcomingEvents.length;
+  upcomingEvents = upcomingEvents.filter(event => event.id != id);
+
+  if (upcomingEvents.length < initialLength) {
+    res.json({ message: "Event deleted successfully." });
+  } else {
+    res.status(404).json({ message: "Event not found." });
+  }
+});

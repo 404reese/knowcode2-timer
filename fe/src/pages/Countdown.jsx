@@ -5,8 +5,9 @@ const Countdown = () => {
     const [timerValue, setTimerValue] = useState(0);
     const [isTimerRunning, setIsTimerRunning] = useState(false);
     const [announcement, setAnnouncement] = useState('');
+    const [upcomingEvents, setUpcomingEvents] = useState([]);
 
-    const API_BASE_URL = 'http://localhost:5000/api';
+    const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/api`;
 
     // Timer Logic
     const fetchTimerState = async () => {
@@ -54,6 +55,23 @@ const Countdown = () => {
         const interval = setInterval(fetchAnnouncement, 2000);
         return () => clearInterval(interval);
     }, []); // Run once on mount
+
+    // Upcoming Events Logic
+    const fetchUpcomingEvents = async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/upcoming-events`);
+            const data = await response.json();
+            setUpcomingEvents(data.events || []);
+        } catch (error) {
+            console.error('Error fetching upcoming events:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchUpcomingEvents();
+        const interval = setInterval(fetchUpcomingEvents, 5000); // Sync every 5 seconds
+        return () => clearInterval(interval);
+    }, []);
 
 
 
@@ -116,14 +134,20 @@ const Countdown = () => {
                             style={{ height: '8px', width: '8px', background: 'red', borderRadius: '50%', boxShadow: '0 0 10px red', animation: 'pulse 0.5s infinite' }}></span>
                     </div>
                     <div className="news-list">
-                        <div className="news-item">
-                            <span className="time-stamp">14:00</span>
-                            <span className="news-content">Registration portal is now officially closed.</span>
-                        </div>
-                        <div className="news-item">
-                            <span className="time-stamp">12:30</span>
-                            <span className="news-content">Access Code: "BESKAR_5G".</span>
-                        </div>
+                        {upcomingEvents.length > 0 ? (
+                            upcomingEvents.map((event) => (
+                                <div className="news-item" key={event.id}>
+                                    <span className="time-stamp">
+                                        {new Date(event.date).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                    <span className="news-content">{event.text}</span>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="news-item">
+                                <span className="news-content">No upcoming events</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 

@@ -3,6 +3,7 @@ import axios from "axios";
 import "./Display.css";
 
 const Display = () => {
+  const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/api`;
   const [timerValue, setTimerValue] = useState(36 * 3600); // 36 hours in seconds
   const [message, setMessage] = useState("SIP CODE REPEAT");
   const [announcement, setAnnouncement] = useState("Dinner Ready Wanna get Cheesy UwU");
@@ -23,9 +24,9 @@ const Display = () => {
   // Fetch the current timer, message, and announcement
   const fetchState = async () => {
     try {
-      const timerResponse = await axios.get("http://localhost:5000/api/timer");
-      const messageResponse = await axios.get("http://localhost:5000/api/message");
-      const announcementResponse = await axios.get("http://localhost:5000/api/announcement");
+      const timerResponse = await axios.get(`${API_BASE_URL}/timer`);
+      const messageResponse = await axios.get(`${API_BASE_URL}/message`);
+      const announcementResponse = await axios.get(`${API_BASE_URL}/announcement`);
 
       setTimerValue(timerResponse.data.timerValue);
       setMessage(messageResponse.data.message);
