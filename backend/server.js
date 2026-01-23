@@ -83,8 +83,8 @@ app.post("/api/announcement", (req, res) => {
 
 // Upcoming Events Section
 let upcomingEvents = [
-  { id: 1, text: "Hackathon Start", date: "2023-11-20T10:00" },
-  { id: 2, text: "Submission Deadline", date: "2023-11-22T12:00" }
+  { id: 1, text: "Hackathon Start", date: "2026-01-23T16:00" },
+  { id: 2, text: "Dinner Time", date: "2026-01-23T20:00" }
 ]; // Default events
 
 // Get all upcoming events
