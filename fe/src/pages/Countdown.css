@@ -118,6 +118,36 @@
   padding-bottom: 5px;
 }
 
+/* --- LIVE ALERT BANNER (pushed from Admin) --- */
+.alert-banner {
+  position: relative;
+  z-index: 5;
+  background: rgba(255, 40, 40, 0.9);
+  color: white;
+  font-family: 'Teko', sans-serif;
+  font-size: 2rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding: 10px 30px;
+  border-radius: 6px;
+  box-shadow: 0 0 25px rgba(255, 51, 51, 0.8);
+  animation: alert-pop 0.4s ease-out;
+  margin-bottom: 20px;
+}
+
+@keyframes alert-pop {
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 /* --- 2. TIMER (Fixed Widths) --- */
 .timer-container {
   margin: 50px 0 100px 0;
@@ -151,6 +181,12 @@
 }
 
 .timer-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.timer-numbers {
   display: flex;
   align-items: flex-start;
   justify-content: center;

@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { socket } from "../socket";
 
 const Admin = () => {
   const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/api`;
-  const [timerValue, setTimerValue] = useState(60);
+  const [phases, setPhases] = useState([]);
+  const [currentPhaseIndex, setCurrentPhaseIndex] = useState(0);
+  const [phaseRemaining, setPhaseRemaining] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [message, setMessage] = useState("");
@@ -13,87 +16,139 @@ const Admin = () => {
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [newEventText, setNewEventText] = useState("");
   const [newEventDate, setNewEventDate] = useState("");
+  const [editablePhases, setEditablePhases] = useState([]);
+  const [customAlertText, setCustomAlertText] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  // Fetch the current timer, message, and announcement state
-  const fetchState = async () => {
-    try {
-      const timerResponse = await axios.get(`${API_BASE_URL}/timer`);
-      const messageResponse = await axios.get(`${API_BASE_URL}/message`);
-      const announcementResponse = await axios.get(`${API_BASE_URL}/announcement`);
-      const eventsResponse = await axios.get(`${API_BASE_URL}/upcoming-events`);
-
-      setTimerValue(timerResponse.data.timerValue);
-      setIsRunning(timerResponse.data.isRunning);
-      setMessage(messageResponse.data.message);
-      setAnnouncement(announcementResponse.data.announcement);
-      setUpcomingEvents(eventsResponse.data.events);
-    } catch (error) {
-      console.error("Error fetching state:", error);
-    }
-  };
-
-  // Update the timer value
-  const updateTimerValue = async () => {
-    const newValue = parseInt(inputValue, 10);
-    if (!isNaN(newValue) && newValue >= 0) {
-      try {
-        await axios.post(`${API_BASE_URL}/timer`, { newValue });
-        setInputValue("");
-        fetchState();
-      } catch (error) {
-        console.error("Error updating timer:", error);
+  // Live state pushed from the server over the socket (no more polling)
+  const lastPhasesSignatureRef = useRef("");
+  useEffect(() => {
+    const handleState = (state) => {
+      setPhases(state.phases);
+      // Only reseed the phase editor when the phase list itself changed
+      // (label/duration/count), not on every per-second tick — otherwise
+      // in-progress edits would get wiped out every second.
+      const signature = JSON.stringify(state.phases);
+      if (signature !== lastPhasesSignatureRef.current) {
+        lastPhasesSignatureRef.current = signature;
+        setEditablePhases(state.phases.map((p) => ({ ...p })));
       }
-    } else {
-      alert("Please enter a valid number.");
-    }
-  };
+      setCurrentPhaseIndex(state.currentPhaseIndex);
+      setPhaseRemaining(state.phaseRemaining);
+      setIsRunning(state.isRunning);
+      setMessage(state.message);
+      setAnnouncement(state.announcement);
+      setUpcomingEvents(state.upcomingEvents || []);
+    };
 
-  // Set the timer to an absolute value (used by quick-action buttons)
+    socket.on("state", handleState);
+    return () => socket.off("state", handleState);
+  }, []);
+
+  // Adjust the remaining time of the currently active phase
   const setTimerTo = async (newValue) => {
     try {
       await axios.post(`${API_BASE_URL}/timer`, { newValue: Math.max(0, newValue) });
-      fetchState();
     } catch (error) {
       console.error("Error updating timer:", error);
     }
   };
 
-  // Add (or subtract, via a negative value) whole minutes from the current timer
+  const updateTimerValue = async () => {
+    const newValue = parseInt(inputValue, 10);
+    if (!isNaN(newValue) && newValue >= 0) {
+      await setTimerTo(newValue);
+      setInputValue("");
+    } else {
+      alert("Please enter a valid number.");
+    }
+  };
+
   const adjustTimerByMinutes = (minutes) => {
-    setTimerTo(timerValue + minutes * 60);
+    setTimerTo(phaseRemaining + minutes * 60);
   };
 
-  // Reset the timer back to 36:00:00
-  const resetTimerTo36Hours = () => {
-    setTimerTo(36 * 60 * 60);
+  const resetCurrentPhase = () => {
+    const phase = phases[currentPhaseIndex];
+    if (phase) setTimerTo(phase.duration);
   };
 
-  // Update the message
+  const toggleTimer = async () => {
+    try {
+      await axios.post(`${API_BASE_URL}/timer/play-pause`);
+    } catch (error) {
+      console.error("Error toggling timer:", error);
+    }
+  };
+
+  const advancePhase = async () => {
+    try {
+      await axios.post(`${API_BASE_URL}/phases/advance`);
+    } catch (error) {
+      console.error("Error advancing phase:", error);
+    }
+  };
+
+  const jumpToPhase = async (index) => {
+    try {
+      await axios.post(`${API_BASE_URL}/phases/jump`, { index });
+    } catch (error) {
+      console.error("Error jumping to phase:", error);
+    }
+  };
+
+  // ---- Phase editor (label + duration for each milestone) ----
+  const updateEditablePhase = (index, field, value) => {
+    setEditablePhases((prev) =>
+      prev.map((p, i) => (i === index ? { ...p, [field]: value } : p))
+    );
+  };
+
+  const addPhaseRow = () => {
+    setEditablePhases((prev) => [...prev, { label: "New Phase", duration: 600 }]);
+  };
+
+  const removePhaseRow = (index) => {
+    setEditablePhases((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const savePhases = async () => {
+    const cleaned = editablePhases
+      .map((p) => ({ ...p, label: (p.label || "").trim(), duration: Number(p.duration) }))
+      .filter((p) => p.label && !isNaN(p.duration) && p.duration >= 0);
+
+    if (cleaned.length === 0) {
+      alert("Add at least one valid phase (label + duration in seconds).");
+      return;
+    }
+
+    try {
+      await axios.post(`${API_BASE_URL}/phases`, { phases: cleaned });
+    } catch (error) {
+      console.error("Error saving phases:", error);
+    }
+  };
+
   const updateMessage = async () => {
     try {
       await axios.post(`${API_BASE_URL}/message`, { newMessage });
       setNewMessage("");
-      fetchState();
     } catch (error) {
       console.error("Error updating message:", error);
     }
   };
 
-  // Update the announcement
   const updateAnnouncement = async () => {
     try {
       await axios.post(`${API_BASE_URL}/announcement`, { newAnnouncement });
       setNewAnnouncement("");
-      fetchState();
     } catch (error) {
       console.error("Error updating announcement:", error);
     }
   };
 
-  // Add new upcoming event
   const addEvent = async () => {
     try {
       if (newEventText && newEventDate) {
@@ -103,7 +158,6 @@ const Admin = () => {
         });
         setNewEventText("");
         setNewEventDate("");
-        fetchState();
       } else {
         alert("Please enter both text and date for the event.");
       }
@@ -112,27 +166,32 @@ const Admin = () => {
     }
   };
 
-  // Delete upcoming event
   const deleteEvent = async (id) => {
     try {
       await axios.delete(`${API_BASE_URL}/upcoming-events/${id}`);
-      fetchState();
     } catch (error) {
       console.error("Error deleting event:", error);
     }
   };
 
-  // Toggle the play/pause state
-  const toggleTimer = async () => {
+  // Broadcast a sound + visual alert to every connected Display/Countdown screen
+  const sendAlert = async (type, text) => {
     try {
-      await axios.post(`${API_BASE_URL}/timer/play-pause`);
-      fetchState();
+      await axios.post(`${API_BASE_URL}/alert`, { type, text });
     } catch (error) {
-      console.error("Error toggling timer:", error);
+      console.error("Error sending alert:", error);
     }
   };
 
-  // Authentication check
+  const sendCustomAlert = () => {
+    if (!customAlertText.trim()) {
+      alert("Enter an alert message first.");
+      return;
+    }
+    sendAlert("custom", customAlertText.trim());
+    setCustomAlertText("");
+  };
+
   const handleLogin = (e) => {
     e.preventDefault();
     if (username === "reese" && password === "reese") {
@@ -141,10 +200,6 @@ const Admin = () => {
       alert("Invalid credentials!");
     }
   };
-
-  useEffect(() => {
-    fetchState();
-  }, []);
 
   return (
     <div style={{ textAlign: "center", marginTop: "50px" }}>
@@ -172,25 +227,80 @@ const Admin = () => {
       ) : (
         <>
           <h1>Admin Control</h1>
-          <h2>Timer: {timerValue} seconds</h2>
-          <button onClick={toggleTimer} style={{ margin: "10px" }}>
-            {isRunning ? "Pause" : "Play"}
-          </button>
-          <div style={{ display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap", margin: "10px" }}>
-            <button onClick={() => adjustTimerByMinutes(-5)}>-5 min</button>
-            <button onClick={() => adjustTimerByMinutes(5)}>+5 min</button>
-            <button onClick={resetTimerTo36Hours}>Reset to 36:00:00</button>
+
+          <div style={{ marginTop: "20px" }}>
+            <h2>Remaining: {phaseRemaining} seconds</h2>
+            <button onClick={toggleTimer} style={{ margin: "10px" }}>
+              {isRunning ? "Pause" : "Play"}
+            </button>
+            <div style={{ display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap", margin: "10px" }}>
+              <button onClick={() => adjustTimerByMinutes(-5)}>-5 min</button>
+              <button onClick={() => adjustTimerByMinutes(5)}>+5 min</button>
+              <button onClick={resetCurrentPhase}>Reset Current Phase</button>
+              <button onClick={advancePhase} disabled={currentPhaseIndex >= phases.length - 1}>
+                Skip to Next Phase
+              </button>
+            </div>
+            <div>
+              <input
+                type="number"
+                placeholder="Enter new timer value (seconds)"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                style={{ margin: "10px" }}
+              />
+              <button onClick={updateTimerValue}>Update Timer</button>
+            </div>
           </div>
-          <div>
-            <input
-              type="number"
-              placeholder="Enter new timer value (seconds)"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              style={{ margin: "10px" }}
-            />
-            <button onClick={updateTimerValue}>Update Timer</button>
+
+          <div style={{ marginTop: "20px" }}>
+            <h2>Timer Phases / Milestones</h2>
+            <div style={{ display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap", marginBottom: "10px" }}>
+              {phases.map((p, i) => (
+                <button
+                  key={p.id}
+                  onClick={() => jumpToPhase(i)}
+                  style={{
+                    fontWeight: i === currentPhaseIndex ? "bold" : "normal",
+                    outline: i === currentPhaseIndex ? "2px solid dodgerblue" : "none"
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ maxWidth: "500px", margin: "0 auto" }}>
+              {editablePhases.map((p, i) => (
+                <div key={i} style={{ display: "flex", gap: "5px", marginBottom: "5px", justifyContent: "center" }}>
+                  <input
+                    type="text"
+                    placeholder="Label"
+                    value={p.label}
+                    onChange={(e) => updateEditablePhase(i, "label", e.target.value)}
+                    style={{ width: "160px" }}
+                  />
+                  <input
+                    type="number"
+                    placeholder="Duration (seconds)"
+                    value={p.duration}
+                    onChange={(e) => updateEditablePhase(i, "duration", e.target.value)}
+                    style={{ width: "160px" }}
+                  />
+                  <button onClick={() => removePhaseRow(i)} style={{ backgroundColor: "red", color: "white", border: "none" }}>
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <div style={{ marginTop: "10px" }}>
+                <button onClick={addPhaseRow}>+ Add Phase</button>
+                <button onClick={savePhases} style={{ marginLeft: "10px" }}>
+                  Save Phases (restarts at Phase 1)
+                </button>
+              </div>
+            </div>
           </div>
+
           <div style={{ marginTop: "20px" }}>
             <h2>Message: {message}</h2>
             <input
@@ -202,6 +312,7 @@ const Admin = () => {
             />
             <button onClick={updateMessage}>Update Message</button>
           </div>
+
           <div style={{ marginTop: "20px" }}>
             <h2>Announcement: {announcement}</h2>
             <input
@@ -213,6 +324,24 @@ const Admin = () => {
             />
             <button onClick={updateAnnouncement}>Update Announcement</button>
           </div>
+
+          <div style={{ marginTop: "20px" }}>
+            <h2>Send Alert to All Screens</h2>
+            <div style={{ display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap", marginBottom: "10px" }}>
+              <button onClick={() => sendAlert("ding", "Ding! Please check in.")}>Ding</button>
+              <button onClick={() => sendAlert("meal", "Meal is ready — head to the cafeteria!")}>Meal Call</button>
+              <button onClick={() => sendAlert("submission", "Submission deadline approaching!")}>Submission Warning</button>
+            </div>
+            <input
+              type="text"
+              placeholder="Custom alert message"
+              value={customAlertText}
+              onChange={(e) => setCustomAlertText(e.target.value)}
+              style={{ margin: "10px", width: "300px" }}
+            />
+            <button onClick={sendCustomAlert}>Send Custom Alert</button>
+          </div>
+
           <div style={{ marginTop: "20px" }}>
             <h2>Upcoming Events</h2>
             <div style={{ marginBottom: "20px" }}>

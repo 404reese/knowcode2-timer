@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { socket } from '../socket';
 import './Countdown.css';
 
 const Countdown = () => {
     const [timerValue, setTimerValue] = useState(0);
-    const [isTimerRunning, setIsTimerRunning] = useState(false);
+    const [isComplete, setIsComplete] = useState(false);
     const [announcement, setAnnouncement] = useState('');
     const [upcomingEvents, setUpcomingEvents] = useState([]);
+    const [alertBanner, setAlertBanner] = useState(null);
     const hasAlertedRef = useRef(false);
-
-    const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/api`;
+    const alertTimeoutRef = useRef(null);
 
     // Play a short alarm beep using the Web Audio API (no audio asset needed)
     const playAlertSound = () => {
@@ -36,7 +37,7 @@ const Countdown = () => {
         }
     };
 
-    const isTimeUp = timerValue <= 0;
+    const isTimeUp = isComplete;
 
     // Trigger the alert sound once, right when the timer transitions to 0
     useEffect(() => {
@@ -48,71 +49,32 @@ const Countdown = () => {
         }
     }, [isTimeUp]);
 
-    // Timer Logic
-    const fetchTimerState = async () => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/timer`);
-            const data = await response.json();
-            setTimerValue(data.timerValue);
-            setIsTimerRunning(data.isRunning);
-        } catch (error) {
-            console.error('Error fetching timer:', error);
-        }
-    };
-
+    // Live state pushed from the server over the socket (timer, phase,
+    // announcement and upcoming events all arrive in one push, no more polling)
     useEffect(() => {
-        fetchTimerState();
-        const syncInterval = setInterval(fetchTimerState, 1000); // Sync every 1 second
+        const handleState = (state) => {
+            setTimerValue(state.phaseRemaining);
+            setIsComplete(state.isComplete);
+            setAnnouncement(state.announcement);
+            setUpcomingEvents(state.upcomingEvents || []);
+        };
 
-        const countdownInterval = setInterval(() => {
-            if (isTimerRunning && timerValue > 0) {
-                setTimerValue(prev => (prev > 0 ? prev - 1 : 0));
-            }
-        }, 1000);
+        const handleAlert = (alert) => {
+            playAlertSound();
+            setAlertBanner(alert.text);
+            clearTimeout(alertTimeoutRef.current);
+            alertTimeoutRef.current = setTimeout(() => setAlertBanner(null), 6000);
+        };
+
+        socket.on('state', handleState);
+        socket.on('alert', handleAlert);
 
         return () => {
-            clearInterval(syncInterval);
-            clearInterval(countdownInterval);
+            socket.off('state', handleState);
+            socket.off('alert', handleAlert);
+            clearTimeout(alertTimeoutRef.current);
         };
-    }, [isTimerRunning]); // Depend on isTimerRunning to ensure interval uses correct state if needed, though simple logic works without
-
-    // Announcement Logic
-    const fetchAnnouncement = async () => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/announcement`);
-            const data = await response.json();
-            if (data.announcement && data.announcement !== announcement) {
-                setAnnouncement(data.announcement);
-            }
-        } catch (error) {
-            console.error('Error fetching announcement:', error);
-        }
-    };
-
-    useEffect(() => {
-        fetchAnnouncement();
-        const interval = setInterval(fetchAnnouncement, 2000);
-        return () => clearInterval(interval);
-    }, []); // Run once on mount
-
-    // Upcoming Events Logic
-    const fetchUpcomingEvents = async () => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/upcoming-events`);
-            const data = await response.json();
-            setUpcomingEvents(data.events || []);
-        } catch (error) {
-            console.error('Error fetching upcoming events:', error);
-        }
-    };
-
-    useEffect(() => {
-        fetchUpcomingEvents();
-        const interval = setInterval(fetchUpcomingEvents, 5000); // Sync every 5 seconds
-        return () => clearInterval(interval);
     }, []);
-
-
 
     const formatTime = (totalSeconds) => {
         const h = Math.floor(totalSeconds / 3600);
@@ -135,35 +97,39 @@ const Countdown = () => {
 
             <div className="header-section">
                 <img src="/kjsit-white.svg" className="kjsit-logo" alt="KJSIT Logo" />
-                <img src="/full-export@3x.png" style={{ width: '100%', maxWidth: '600px' }} alt="KnowCode Logo" />
-                <img src="/25yrs.png" className="yrs-logo" alt="25 Years Logo" />
+                <img src="/kb2-logo2.png" style={{ width: '100%', maxWidth: '500px' }} alt="KB2 Logo" />
+                <img src="/s4ds%20white.png" className="yrs-logo" alt="S4DS Logo" />
             </div>
+
+            {alertBanner && <div className="alert-banner">{alertBanner}</div>}
 
             <div className="timer-container">
                 {isTimeUp ? (
                     <div className="time-up-text">TIME'S UP</div>
                 ) : (
                     <div className="timer-display">
-                        {/* Hours */}
-                        <div className="time-unit">
-                            <div className="number" id="hours">{time.h}</div>
-                            <div className="label">Hours</div>
-                        </div>
+                        <div className="timer-numbers">
+                            {/* Hours */}
+                            <div className="time-unit">
+                                <div className="number" id="hours">{time.h}</div>
+                                <div className="label">Hours</div>
+                            </div>
 
-                        <div className="separator">:</div>
+                            <div className="separator">:</div>
 
-                        {/* Minutes */}
-                        <div className="time-unit">
-                            <div className="number" id="minutes">{time.m}</div>
-                            <div className="label">Minutes</div>
-                        </div>
+                            {/* Minutes */}
+                            <div className="time-unit">
+                                <div className="number" id="minutes">{time.m}</div>
+                                <div className="label">Minutes</div>
+                            </div>
 
-                        <div className="separator">:</div>
+                            <div className="separator">:</div>
 
-                        {/* Seconds */}
-                        <div className="time-unit">
-                            <div className="number" id="seconds">{time.s}</div>
-                            <div className="label">Seconds</div>
+                            {/* Seconds */}
+                            <div className="time-unit">
+                                <div className="number" id="seconds">{time.s}</div>
+                                <div className="label">Seconds</div>
+                            </div>
                         </div>
                     </div>
                 )}
