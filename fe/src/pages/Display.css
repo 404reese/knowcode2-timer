@@ -149,3 +149,26 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* --- TIMER ENDED ALERT --- */
+.time-up-text {
+  font-size: 5rem;
+  font-weight: bold;
+  letter-spacing: 10px;
+  color: rgb(255, 40, 40);
+  text-shadow: 0 0 30px rgba(255, 51, 51, 0.9);
+  animation: alert-blink 2.5s infinite;
+  padding: 10px 20px;
+}
+
+@keyframes alert-blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.15;
+  }
+}

@@ -6,8 +6,47 @@ const Countdown = () => {
     const [isTimerRunning, setIsTimerRunning] = useState(false);
     const [announcement, setAnnouncement] = useState('');
     const [upcomingEvents, setUpcomingEvents] = useState([]);
+    const hasAlertedRef = useRef(false);
 
     const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/api`;
+
+    // Play a short alarm beep using the Web Audio API (no audio asset needed)
+    const playAlertSound = () => {
+        try {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            const ctx = new AudioContextClass();
+            const playBeep = (startTime) => {
+                const oscillator = ctx.createOscillator();
+                const gain = ctx.createGain();
+                oscillator.type = 'square';
+                oscillator.frequency.value = 880;
+                gain.gain.setValueAtTime(0.2, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+                oscillator.connect(gain);
+                gain.connect(ctx.destination);
+                oscillator.start(startTime);
+                oscillator.stop(startTime + 0.4);
+            };
+            const now = ctx.currentTime;
+            playBeep(now);
+            playBeep(now + 0.5);
+            playBeep(now + 1.0);
+        } catch (error) {
+            console.error('Error playing alert sound:', error);
+        }
+    };
+
+    const isTimeUp = timerValue <= 0;
+
+    // Trigger the alert sound once, right when the timer transitions to 0
+    useEffect(() => {
+        if (isTimeUp && !hasAlertedRef.current) {
+            hasAlertedRef.current = true;
+            playAlertSound();
+        } else if (!isTimeUp) {
+            hasAlertedRef.current = false;
+        }
+    }, [isTimeUp]);
 
     // Timer Logic
     const fetchTimerState = async () => {
@@ -101,29 +140,33 @@ const Countdown = () => {
             </div>
 
             <div className="timer-container">
-                <div className="timer-display">
-                    {/* Hours */}
-                    <div className="time-unit">
-                        <div className="number" id="hours">{time.h}</div>
-                        <div className="label">Hours</div>
+                {isTimeUp ? (
+                    <div className="time-up-text">TIME'S UP</div>
+                ) : (
+                    <div className="timer-display">
+                        {/* Hours */}
+                        <div className="time-unit">
+                            <div className="number" id="hours">{time.h}</div>
+                            <div className="label">Hours</div>
+                        </div>
+
+                        <div className="separator">:</div>
+
+                        {/* Minutes */}
+                        <div className="time-unit">
+                            <div className="number" id="minutes">{time.m}</div>
+                            <div className="label">Minutes</div>
+                        </div>
+
+                        <div className="separator">:</div>
+
+                        {/* Seconds */}
+                        <div className="time-unit">
+                            <div className="number" id="seconds">{time.s}</div>
+                            <div className="label">Seconds</div>
+                        </div>
                     </div>
-
-                    <div className="separator">:</div>
-
-                    {/* Minutes */}
-                    <div className="time-unit">
-                        <div className="number" id="minutes">{time.m}</div>
-                        <div className="label">Minutes</div>
-                    </div>
-
-                    <div className="separator">:</div>
-
-                    {/* Seconds */}
-                    <div className="time-unit">
-                        <div className="number" id="seconds">{time.s}</div>
-                        <div className="label">Seconds</div>
-                    </div>
-                </div>
+                )}
             </div>
 
             <div className="intel-grid">

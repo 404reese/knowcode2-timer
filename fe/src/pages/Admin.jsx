@@ -51,6 +51,26 @@ const Admin = () => {
     }
   };
 
+  // Set the timer to an absolute value (used by quick-action buttons)
+  const setTimerTo = async (newValue) => {
+    try {
+      await axios.post(`${API_BASE_URL}/timer`, { newValue: Math.max(0, newValue) });
+      fetchState();
+    } catch (error) {
+      console.error("Error updating timer:", error);
+    }
+  };
+
+  // Add (or subtract, via a negative value) whole minutes from the current timer
+  const adjustTimerByMinutes = (minutes) => {
+    setTimerTo(timerValue + minutes * 60);
+  };
+
+  // Reset the timer back to 36:00:00
+  const resetTimerTo36Hours = () => {
+    setTimerTo(36 * 60 * 60);
+  };
+
   // Update the message
   const updateMessage = async () => {
     try {
@@ -156,11 +176,15 @@ const Admin = () => {
           <button onClick={toggleTimer} style={{ margin: "10px" }}>
             {isRunning ? "Pause" : "Play"}
           </button>
-          <p><a href="https://www.calculateme.com/time/hours-minutes-seconds/to-seconds/36:0:0" target="_blank" rel="noopener noreferrer">Calculate Seconds</a></p>
+          <div style={{ display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap", margin: "10px" }}>
+            <button onClick={() => adjustTimerByMinutes(-5)}>-5 min</button>
+            <button onClick={() => adjustTimerByMinutes(5)}>+5 min</button>
+            <button onClick={resetTimerTo36Hours}>Reset to 36:00:00</button>
+          </div>
           <div>
             <input
               type="number"
-              placeholder="Enter new timer value"
+              placeholder="Enter new timer value (seconds)"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               style={{ margin: "10px" }}

@@ -9,6 +9,9 @@ npm-debug.log*
 # Environment variables
 .env
 
+# Persisted runtime state
+data.json
+
 # Build output
 dist/
 build/

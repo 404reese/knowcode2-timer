@@ -1,17 +1,61 @@
 const express = require("express");
 const cors = require("cors");
+const fs = require("fs");
+const path = require("path");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-let timerValue = 129600; // Initial timer value in seconds
-let isRunning = false;
+// ---- Persistence ----
+const DATA_FILE = path.join(__dirname, "data.json");
+
+const defaultState = {
+  timerValue: 129600, // Initial timer value in seconds
+  isRunning: false,
+  message: "Prepare for the next 36 hours of chaos",
+  announcement: "Hold on to your keyboards",
+  upcomingEvents: [
+    { id: 1, text: "Hackathon Start", date: "2026-01-23T16:00" },
+    { id: 2, text: "Dinner Time", date: "2026-01-23T20:00" }
+  ]
+};
+
+function loadState() {
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      const raw = fs.readFileSync(DATA_FILE, "utf-8");
+      const parsed = JSON.parse(raw);
+      return { ...defaultState, ...parsed };
+    }
+  } catch (error) {
+    console.error("Error loading persisted state, falling back to defaults:", error);
+  }
+  return { ...defaultState };
+}
+
+function saveState() {
+  const state = { timerValue, isRunning, message, announcement, upcomingEvents };
+  fs.writeFile(DATA_FILE, JSON.stringify(state, null, 2), (error) => {
+    if (error) console.error("Error saving state:", error);
+  });
+}
+
+const initialState = loadState();
+let timerValue = initialState.timerValue;
+let isRunning = initialState.isRunning;
+let message = initialState.message;
+let announcement = initialState.announcement;
+let upcomingEvents = initialState.upcomingEvents;
 
 // Timer logic: decrement timer every second if running
 setInterval(() => {
   if (isRunning && timerValue > 0) {
     timerValue--;
+    // Persist periodically (every 10s) instead of every tick to limit disk I/O
+    if (timerValue % 10 === 0) {
+      saveState();
+    }
   }
 }, 1000);
 
@@ -25,6 +69,7 @@ app.post("/api/timer", (req, res) => {
   const { newValue } = req.body;
   if (typeof newValue === "number" && newValue >= 0) {
     timerValue = newValue;
+    saveState();
     res.json({ message: "Timer updated successfully." });
   } else {
     res.status(400).json({ message: "Invalid timer value." });
@@ -34,6 +79,7 @@ app.post("/api/timer", (req, res) => {
 // Toggle play/pause
 app.post("/api/timer/play-pause", (req, res) => {
   isRunning = !isRunning;
+  saveState();
   res.json({ message: isRunning ? "Timer started." : "Timer paused." });
 });
 
@@ -42,9 +88,6 @@ const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
-
-
-let message = "Prepare for the next 36 hours of chaos"; // Default message
 
 // Get the current message
 app.get("/api/message", (req, res) => {
@@ -56,6 +99,7 @@ app.post("/api/message", (req, res) => {
   const { newMessage } = req.body;
   if (typeof newMessage === "string") {
     message = newMessage;
+    saveState();
     res.json({ message: "Message updated successfully." });
   } else {
     res.status(400).json({ message: "Invalid message." });
@@ -63,8 +107,6 @@ app.post("/api/message", (req, res) => {
 });
 
 // announce section
-let announcement = "Hold on to your keyboards"; // Default announcement
-
 // Get the current announcement
 app.get("/api/announcement", (req, res) => {
   res.json({ announcement });
@@ -75,6 +117,7 @@ app.post("/api/announcement", (req, res) => {
   const { newAnnouncement } = req.body;
   if (typeof newAnnouncement === "string") {
     announcement = newAnnouncement;
+    saveState();
     res.json({ message: "Announcement updated successfully." });
   } else {
     res.status(400).json({ message: "Invalid announcement." });
@@ -82,11 +125,6 @@ app.post("/api/announcement", (req, res) => {
 });
 
 // Upcoming Events Section
-let upcomingEvents = [
-  { id: 1, text: "Hackathon Start", date: "2026-01-23T16:00" },
-  { id: 2, text: "Dinner Time", date: "2026-01-23T20:00" }
-]; // Default events
-
 // Get all upcoming events
 app.get("/api/upcoming-events", (req, res) => {
   res.json({ events: upcomingEvents });
@@ -102,6 +140,7 @@ app.post("/api/upcoming-events", (req, res) => {
       date
     };
     upcomingEvents.push(newEvent);
+    saveState();
     res.json({ message: "Event added successfully.", event: newEvent });
   } else {
     res.status(400).json({ message: "Invalid event data. Text and Date are required." });
@@ -115,8 +154,19 @@ app.delete("/api/upcoming-events/:id", (req, res) => {
   upcomingEvents = upcomingEvents.filter(event => event.id != id);
 
   if (upcomingEvents.length < initialLength) {
+    saveState();
     res.json({ message: "Event deleted successfully." });
   } else {
     res.status(404).json({ message: "Event not found." });
   }
+});
+
+// Persist state on shutdown so a manual stop doesn't lose the latest tick
+process.on("SIGINT", () => {
+  saveState();
+  process.exit(0);
+});
+process.on("SIGTERM", () => {
+  saveState();
+  process.exit(0);
 });
