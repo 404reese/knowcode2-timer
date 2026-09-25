@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { socket } from "../socket";
 
@@ -9,36 +9,23 @@ const Admin = () => {
   const [phaseRemaining, setPhaseRemaining] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  const [message, setMessage] = useState("");
-  const [newMessage, setNewMessage] = useState("");
   const [announcement, setAnnouncement] = useState("");
   const [newAnnouncement, setNewAnnouncement] = useState("");
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [newEventText, setNewEventText] = useState("");
   const [newEventDate, setNewEventDate] = useState("");
-  const [editablePhases, setEditablePhases] = useState([]);
   const [customAlertText, setCustomAlertText] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
   // Live state pushed from the server over the socket (no more polling)
-  const lastPhasesSignatureRef = useRef("");
   useEffect(() => {
     const handleState = (state) => {
       setPhases(state.phases);
-      // Only reseed the phase editor when the phase list itself changed
-      // (label/duration/count), not on every per-second tick — otherwise
-      // in-progress edits would get wiped out every second.
-      const signature = JSON.stringify(state.phases);
-      if (signature !== lastPhasesSignatureRef.current) {
-        lastPhasesSignatureRef.current = signature;
-        setEditablePhases(state.phases.map((p) => ({ ...p })));
-      }
       setCurrentPhaseIndex(state.currentPhaseIndex);
       setPhaseRemaining(state.phaseRemaining);
       setIsRunning(state.isRunning);
-      setMessage(state.message);
       setAnnouncement(state.announcement);
       setUpcomingEvents(state.upcomingEvents || []);
     };
@@ -88,55 +75,6 @@ const Admin = () => {
       await axios.post(`${API_BASE_URL}/phases/advance`);
     } catch (error) {
       console.error("Error advancing phase:", error);
-    }
-  };
-
-  const jumpToPhase = async (index) => {
-    try {
-      await axios.post(`${API_BASE_URL}/phases/jump`, { index });
-    } catch (error) {
-      console.error("Error jumping to phase:", error);
-    }
-  };
-
-  // ---- Phase editor (label + duration for each milestone) ----
-  const updateEditablePhase = (index, field, value) => {
-    setEditablePhases((prev) =>
-      prev.map((p, i) => (i === index ? { ...p, [field]: value } : p))
-    );
-  };
-
-  const addPhaseRow = () => {
-    setEditablePhases((prev) => [...prev, { label: "New Phase", duration: 600 }]);
-  };
-
-  const removePhaseRow = (index) => {
-    setEditablePhases((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const savePhases = async () => {
-    const cleaned = editablePhases
-      .map((p) => ({ ...p, label: (p.label || "").trim(), duration: Number(p.duration) }))
-      .filter((p) => p.label && !isNaN(p.duration) && p.duration >= 0);
-
-    if (cleaned.length === 0) {
-      alert("Add at least one valid phase (label + duration in seconds).");
-      return;
-    }
-
-    try {
-      await axios.post(`${API_BASE_URL}/phases`, { phases: cleaned });
-    } catch (error) {
-      console.error("Error saving phases:", error);
-    }
-  };
-
-  const updateMessage = async () => {
-    try {
-      await axios.post(`${API_BASE_URL}/message`, { newMessage });
-      setNewMessage("");
-    } catch (error) {
-      console.error("Error updating message:", error);
     }
   };
 
@@ -251,66 +189,6 @@ const Admin = () => {
               />
               <button onClick={updateTimerValue}>Update Timer</button>
             </div>
-          </div>
-
-          <div style={{ marginTop: "20px" }}>
-            <h2>Timer Phases / Milestones</h2>
-            <div style={{ display: "flex", justifyContent: "center", gap: "10px", flexWrap: "wrap", marginBottom: "10px" }}>
-              {phases.map((p, i) => (
-                <button
-                  key={p.id}
-                  onClick={() => jumpToPhase(i)}
-                  style={{
-                    fontWeight: i === currentPhaseIndex ? "bold" : "normal",
-                    outline: i === currentPhaseIndex ? "2px solid dodgerblue" : "none"
-                  }}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-
-            <div style={{ maxWidth: "500px", margin: "0 auto" }}>
-              {editablePhases.map((p, i) => (
-                <div key={i} style={{ display: "flex", gap: "5px", marginBottom: "5px", justifyContent: "center" }}>
-                  <input
-                    type="text"
-                    placeholder="Label"
-                    value={p.label}
-                    onChange={(e) => updateEditablePhase(i, "label", e.target.value)}
-                    style={{ width: "160px" }}
-                  />
-                  <input
-                    type="number"
-                    placeholder="Duration (seconds)"
-                    value={p.duration}
-                    onChange={(e) => updateEditablePhase(i, "duration", e.target.value)}
-                    style={{ width: "160px" }}
-                  />
-                  <button onClick={() => removePhaseRow(i)} style={{ backgroundColor: "red", color: "white", border: "none" }}>
-                    Remove
-                  </button>
-                </div>
-              ))}
-              <div style={{ marginTop: "10px" }}>
-                <button onClick={addPhaseRow}>+ Add Phase</button>
-                <button onClick={savePhases} style={{ marginLeft: "10px" }}>
-                  Save Phases (restarts at Phase 1)
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginTop: "20px" }}>
-            <h2>Message: {message}</h2>
-            <input
-              type="text"
-              placeholder="Enter new message"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              style={{ margin: "10px", width: "300px" }}
-            />
-            <button onClick={updateMessage}>Update Message</button>
           </div>
 
           <div style={{ marginTop: "20px" }}>

@@ -10,12 +10,47 @@ const Countdown = () => {
     const [alertBanner, setAlertBanner] = useState(null);
     const hasAlertedRef = useRef(false);
     const alertTimeoutRef = useRef(null);
+    const audioCtxRef = useRef(null);
+    const [audioUnlocked, setAudioUnlocked] = useState(false);
+
+    const getAudioContext = () => {
+        if (!audioCtxRef.current) {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            audioCtxRef.current = new AudioContextClass();
+        }
+        return audioCtxRef.current;
+    };
+
+    // Browsers block audio until the page has received a user gesture.
+    // Since this screen is often left open unattended, show a one-time
+    // "tap to enable sound" prompt that unlocks the shared AudioContext.
+    const unlockAudio = () => {
+        const ctx = getAudioContext();
+        if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
+        setAudioUnlocked(true);
+    };
+
+    useEffect(() => {
+        const handleFirstInteraction = () => unlockAudio();
+        window.addEventListener('click', handleFirstInteraction, { once: true });
+        window.addEventListener('touchstart', handleFirstInteraction, { once: true });
+        window.addEventListener('keydown', handleFirstInteraction, { once: true });
+        return () => {
+            window.removeEventListener('click', handleFirstInteraction);
+            window.removeEventListener('touchstart', handleFirstInteraction);
+            window.removeEventListener('keydown', handleFirstInteraction);
+        };
+    }, []);
 
     // Play a short alarm beep using the Web Audio API (no audio asset needed)
     const playAlertSound = () => {
         try {
-            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-            const ctx = new AudioContextClass();
+            const ctx = getAudioContext();
+            if (ctx.state === 'suspended') {
+                ctx.resume();
+            }
             const playBeep = (startTime) => {
                 const oscillator = ctx.createOscillator();
                 const gain = ctx.createGain();
@@ -92,7 +127,7 @@ const Countdown = () => {
     return (
         <div className="countdown-page">
             <video id="bg-video" autoPlay loop muted playsInline>
-                <source src="/video1.mp4" type="video/mp4" />
+                <source src="/video.mp4" type="video/mp4" />
             </video>
 
             <div className="header-section">
@@ -100,6 +135,12 @@ const Countdown = () => {
                 <img src="/kb2-logo2.png" style={{ width: '100%', maxWidth: '500px' }} alt="KB2 Logo" />
                 <img src="/s4ds%20white.png" className="yrs-logo" alt="S4DS Logo" />
             </div>
+
+            {!audioUnlocked && (
+                <div className="sound-unlock-banner" onClick={unlockAudio}>
+                    🔊 Tap anywhere to enable sound
+                </div>
+            )}
 
             {alertBanner && <div className="alert-banner">{alertBanner}</div>}
 

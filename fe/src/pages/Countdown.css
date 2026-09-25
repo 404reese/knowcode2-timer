@@ -50,8 +50,8 @@
 
 /* --- 1. HEADER --- */
 .header-section {
-  margin-top: 60px;
-  margin-bottom: 50px;
+  margin-top: 15px;
+  margin-bottom: 15px;
   width: 100%;
   padding: 0 40px;
   display: grid;
@@ -119,6 +119,21 @@
 }
 
 /* --- LIVE ALERT BANNER (pushed from Admin) --- */
+.sound-unlock-banner {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+  font-family: 'Teko', sans-serif;
+  font-size: 3rem;
+  letter-spacing: 2px;
+  cursor: pointer;
+}
+
 .alert-banner {
   position: relative;
   z-index: 5;
@@ -150,8 +165,8 @@
 
 /* --- 2. TIMER (Fixed Widths) --- */
 .timer-container {
-  margin: 50px 0 100px 0;
-  padding: 40px 60px;
+  margin: 20px 0 40px 0;
+  padding: 30px 60px;
 
   background: var(--dark-glass);
   backdrop-filter: blur(15px);

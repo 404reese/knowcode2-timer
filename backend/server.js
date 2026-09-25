@@ -21,18 +21,18 @@ const defaultState = {
   // Ordered timer phases. Each phase counts down independently; when one
   // hits zero the next phase starts automatically.
   phases: [
-    { id: 1, label: "Hacking", duration: 129600 }, // 36 hours
+    { id: 1, label: "Hacking", duration: 28800 }, // 8 hours
     { id: 2, label: "Judging", duration: 5400 }, // 1.5 hours
     { id: 3, label: "Submission Deadline", duration: 900 }, // 15 minutes
   ],
   currentPhaseIndex: 0,
-  phaseRemaining: 129600,
+  phaseRemaining: 28800,
   isRunning: false,
-  message: "Prepare for the next 36 hours of chaos",
+  message: "Prepare for the next 8 hours of chaos",
   announcement: "Hold on to your keyboards",
   upcomingEvents: [
-    { id: 1, text: "Hackathon Start", date: "2026-01-23T16:00" },
-    { id: 2, text: "Dinner Time", date: "2026-01-23T20:00" }
+    { id: 1, text: "Start Coding", date: "2026-09-26T08:00" },
+    { id: 2, text: "Mentoring Round", date: "2026-09-26T11:00" }
   ]
 };
 
